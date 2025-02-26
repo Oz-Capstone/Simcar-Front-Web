@@ -2,11 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { BiEnvelope, BiLockAlt, BiShow, BiHide } from 'react-icons/bi';
-import { api } from '../../api/axios';
 import { setUser } from '../../store/authSlice';
 import logo from '../../assets/images/logo.png';
-import { AxiosError } from 'axios';
-import { ErrorResponse } from '../../types/auth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,62 +22,55 @@ const Login = () => {
     setIsLoading(true);
     setError('');
 
-    try {
-      // 요청 전 로깅 추가
-      console.log('Attempting login with:', { email, passwordLength: password.length });
-      console.log('API endpoint:', '/members/login');
+    // 디버깅을 위한 로그 추가
+    console.log('Form submitted');
 
-      const response = await api.post('/members/login', {
-        email,
-        password,
+    try {
+      // 직접 fetch API를 사용해 요청
+      const response = await fetch('https://simcar.kro.kr/api/members/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
-      // 응답 데이터 확인을 위한 로깅 추가
       console.log('Login response status:', response.status);
-      console.log('Login response data:', response.data);
 
-      if (response.status === 200) {
-        // 토큰 형식 확인 로깅
-        console.log('Token from response:', response.data?.token);
+      if (!response.ok) {
+        throw new Error(`Login failed: ${response.status}`);
+      }
 
-        if (response.data?.token) {
-          localStorage.setItem('token', response.data.token);
-        } else if (response.data?.accessToken) {
-          // 토큰 이름이 다를 수 있음
-          localStorage.setItem('token', response.data.accessToken);
+      const data = await response.json();
+      console.log('Login response data:', data);
+
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+
+        // 프로필 정보 가져오기
+        const profileResponse = await fetch('https://simcar.kro.kr/api/members/profile', {
+          headers: {
+            Authorization: `Bearer ${data.token}`,
+          },
+        });
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          localStorage.setItem('user', JSON.stringify(profileData));
+          dispatch(setUser(profileData));
+          navigate(from, { replace: true });
         } else {
-          console.warn('No token found in response:', response.data);
-        }
-
-        try {
-          console.log('Fetching user profile...');
-          const profileResponse = await api.get('/members/profile');
-          console.log('Profile response:', profileResponse.data);
-
-          if (profileResponse.data) {
-            localStorage.setItem('user', JSON.stringify(profileResponse.data));
-            dispatch(setUser(profileResponse.data));
-            console.log('Login successful, navigating to:', from);
-            navigate(from, { replace: true });
-          }
-        } catch (profileErr) {
-          console.error('Profile fetch error:', profileErr);
           setError('프로필 정보를 가져오는데 실패했습니다.');
         }
+      } else {
+        setError('토큰 정보를 받지 못했습니다.');
       }
     } catch (err) {
-      const error = err as AxiosError<ErrorResponse>;
-      console.error('Login error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-
-      if (error.response?.status === 401) {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
-      } else {
-        setError(`로그인에 실패했습니다: ${error.response?.data?.message || error.message}`);
-      }
+      console.error('Login error:', err);
+      setError(`로그인에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     } finally {
       setIsLoading(false);
     }
