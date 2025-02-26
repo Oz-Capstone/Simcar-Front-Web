@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { BiEnvelope, BiLockAlt, BiShow, BiHide } from 'react-icons/bi';
+import { api } from '../../api/axios';
 import { setUser } from '../../store/authSlice';
 import logo from '../../assets/images/logo.png';
+import { AxiosError } from 'axios';
+import { ErrorResponse } from '../../types/auth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -19,87 +21,32 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    console.log('Form submitted');
-
     try {
-      const response = await fetch('https://simcar.kro.kr/api/members/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const response = await api.post('/members/login', {
+        email,
+        password,
       });
 
-      console.log('Login response status:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`Login failed: ${response.status}`);
-      }
-
-      // 응답 내용 텍스트로 먼저 확인
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-
-      // 텍스트가 비어있지 않은 경우에만 JSON 파싱 시도
-      let data;
-      if (responseText.trim()) {
-        try {
-          data = JSON.parse(responseText);
-          console.log('Login response data:', data);
-        } catch (parseError) {
-          console.error('JSON parsing error:', parseError);
-          throw new Error('서버 응답을 처리할 수 없습니다');
+      if (response.status === 200) {
+        if (response.data?.token) {
+          localStorage.setItem('token', response.data.token);
         }
-      } else {
-        console.log('Empty response received');
-        // 빈 응답이 성공이라고 가정하고 진행
-        data = {};
-      }
 
-      // 토큰 획득 또는 세션 기반 인증 처리
-      if (data?.token) {
-        localStorage.setItem('token', data.token);
-      } else {
-        // 토큰이 없는 경우에도 로그인이 성공했다고 가정
-        console.log('No token in response, but login successful');
-      }
-
-      // 프로필 정보 가져오기
-      try {
-        const profileResponse = await fetch('https://simcar.kro.kr/api/members/profile', {
-          headers: {
-            Authorization: data?.token ? `Bearer ${data.token}` : '',
-          },
-        });
-
-        if (profileResponse.ok) {
-          const profileText = await profileResponse.text();
-          if (profileText.trim()) {
-            const profileData = JSON.parse(profileText);
-            localStorage.setItem('user', JSON.stringify(profileData));
-            dispatch(setUser(profileData));
-            navigate(from, { replace: true });
-          } else {
-            throw new Error('프로필 정보가 비어있습니다');
-          }
-        } else {
-          throw new Error(`프로필 요청 실패: ${profileResponse.status}`);
+        const profileResponse = await api.get('/members/profile');
+        if (profileResponse.data) {
+          localStorage.setItem('user', JSON.stringify(profileResponse.data));
+          dispatch(setUser(profileResponse.data));
+          navigate(from, { replace: true });
         }
-      } catch (profileErr) {
-        console.error('Profile fetch error:', profileErr);
-        setError('프로필 정보를 가져오는데 실패했습니다.');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(`로그인에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
-    } finally {
-      setIsLoading(false);
+      const error = err as AxiosError<ErrorResponse>;
+      if (error.response?.status === 401) {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else {
+        setError('로그인에 실패했습니다. 다시 시도해주세요.');
+      }
+      console.error('Login error:', error);
     }
   };
 
@@ -163,9 +110,8 @@ const Login = () => {
               <button
                 type='submit'
                 className='w-full py-4 bg-[#36379C] text-white rounded-lg font-medium hover:bg-[#2F2F8C] transition-colors'
-                disabled={isLoading}
               >
-                {isLoading ? '로그인 중...' : '로그인'}
+                로그인
               </button>
             </form>
 
