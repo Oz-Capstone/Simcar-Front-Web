@@ -21,6 +21,8 @@ export interface CarRegistrationRequest {
 // 이미지 URL을 백엔드 서버 URL과 결합
 export const getFullImageUrl = (path: string): string => {
   if (!path) return '';
+  // path가 이미 http나 https로 시작하면 그대로 반환
+  if (path.startsWith('http')) return path;
   return `https://simcar.kro.kr${path}`;
 };
 
@@ -108,29 +110,39 @@ const processCarDetailData = (car: Car): Car => {
 
 // 차량 목록 조회
 export const getCars = async (filter?: CarFilter): Promise<CarListResponse[]> => {
+  console.log('차량 목록 조회 요청, 필터:', filter);
   const response = await api.get<CarListResponse[]>('/cars', {
     params: filter,
   });
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  return response.data.map(processCarData);
+  const processedData = response.data.map(processCarData);
+  console.log('차량 목록 응답:', processedData);
+  return processedData;
 };
 
 // 차량 상세 조회
 export const getCarDetail = async (carId: number): Promise<Car> => {
+  console.log('차량 상세 조회 요청, ID:', carId);
   const response = await api.get<Car>(`/cars/${carId}`);
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  return processCarDetailData(response.data);
+  const processedData = processCarDetailData(response.data);
+  console.log('차량 상세 응답:', processedData);
+  return processedData;
 };
 
 // 내 판매 차량 목록 조회
 export const getMySales = async (): Promise<CarListResponse[]> => {
+  console.log('내 판매 차량 목록 조회 요청');
   const response = await api.get<CarListResponse[]>('/members/sales');
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  return response.data.map(processCarData);
+  const processedData = response.data.map(processCarData);
+  console.log('내 판매 차량 목록 응답:', processedData);
+  return processedData;
 };
 
 // 찜한 차량 목록 조회
 export const getFavorites = async (): Promise<CarListResponse[]> => {
+  console.log('찜한 차량 목록 조회 요청');
   const response = await api.get<CarListResponse[]>('/members/favorites');
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
   const favorites = response.data.map(processCarData);
@@ -138,12 +150,15 @@ export const getFavorites = async (): Promise<CarListResponse[]> => {
   // 찜한 차량 ID를 로컬 스토리지에 저장
   saveFavoriteIdsToLocalStorage(favorites.map((car) => car.id));
 
+  console.log('찜한 차량 목록 응답:', favorites);
   return favorites;
 };
 
 // 차량 진단 정보 조회
 export const getCarDiagnosis = async (carId: number) => {
+  console.log('차량 진단 정보 조회 요청, ID:', carId);
   const response = await api.get(`/cars/${carId}/diagnosis`);
+  console.log('차량 진단 정보 응답:', response.data);
   return response.data;
 };
 
@@ -152,6 +167,7 @@ export const registerCar = async (
   carData: CarRegistrationRequest,
   images: File[]
 ): Promise<string> => {
+  console.log('차량 등록 요청:', { carData, imageCount: images.length });
   const formData = new FormData();
 
   // 차량 정보를 JSON string으로 변환하여 request 필드에 추가
@@ -168,28 +184,38 @@ export const registerCar = async (
     },
   });
 
+  console.log('차량 등록 응답:', response.data);
   return response.data;
 };
 
 // 대표 이미지 설정
 export const setCarThumbnail = async (carId: number, imageId: number): Promise<void> => {
+  console.log('대표 이미지 설정 요청:', { carId, imageId });
   await api.put(`/cars/${carId}/thumbnail/${imageId}`);
+  console.log('대표 이미지 설정 완료');
 };
 
 // 차량 정보 수정
 export const updateCar = async (carId: number, carData: CarRegistrationRequest): Promise<Car> => {
+  console.log('차량 정보 수정 요청:', { carId, carData });
   const response = await api.put<Car>(`/cars/${carId}`, carData);
-  return processCarDetailData(response.data);
+  const processedData = processCarDetailData(response.data);
+  console.log('차량 정보 수정 응답:', processedData);
+  return processedData;
 };
 
 // 차량 삭제
 export const deleteCar = async (carId: number): Promise<void> => {
+  console.log('차량 삭제 요청, ID:', carId);
   await api.delete(`/cars/${carId}`);
+  console.log('차량 삭제 완료');
 };
 
 // 찜하기
 export const addFavorite = async (carId: number): Promise<void> => {
+  console.log('찜하기 요청, ID:', carId);
   await api.post(`/favorites/${carId}`);
+  console.log('찜하기 완료');
 
   // 로컬 스토리지에 찜하기 상태 업데이트
   const favoriteIds = getFavoriteIdsFromLocalStorage();
@@ -200,7 +226,9 @@ export const addFavorite = async (carId: number): Promise<void> => {
 
 // 찜하기 취소
 export const removeFavorite = async (carId: number): Promise<void> => {
+  console.log('찜하기 취소 요청, ID:', carId);
   await api.delete(`/favorites/${carId}`);
+  console.log('찜하기 취소 완료');
 
   // 로컬 스토리지에서 찜하기 상태 업데이트
   const favoriteIds = getFavoriteIdsFromLocalStorage();

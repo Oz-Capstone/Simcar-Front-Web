@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { BiEnvelope, BiLockAlt, BiShow, BiHide } from 'react-icons/bi';
+import { api } from '../../api/axios';
 import { setUser } from '../../store/authSlice';
 import logo from '../../assets/images/logo.png';
+import { AxiosError } from 'axios';
+import { ErrorResponse } from '../../types/auth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,102 +20,62 @@ const Login = () => {
   const location = useLocation();
   const from = location.state?.from || '/';
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    console.log('Login attempt with:', email);
-
-    // 직접 fetch를 사용하여 로그인 요청
     try {
-      // 로그인 전송
-      const loginResponse = await fetch('https://simcar.kro.kr/api/members/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-        credentials: 'include',
+      // 로그인 요청
+      console.log('로그인 시도:', { email, password });
+      const response = await api.post('/members/login', {
+        email,
+        password,
       });
 
-      console.log('Login status:', loginResponse.status);
+      console.log('로그인 응답:', response.data);
 
-      if (!loginResponse.ok) {
-        throw new Error(`Login failed with status: ${loginResponse.status}`);
-      }
+      if (response.status === 200) {
+        if (response.data?.token) {
+          // 토큰 저장
+          const token = response.data.token;
+          localStorage.setItem('token', token);
+          console.log('토큰 저장됨:', token);
 
-      let token = '';
-      // 응답 헤더에서 Authorization 토큰 확인
-      const authHeader = loginResponse.headers.get('Authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
+          // Authorization 헤더 직접 설정
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      // 응답 본문 확인
-      let responseText = '';
-      try {
-        responseText = await loginResponse.text();
-        console.log('Response body:', responseText);
-
-        if (responseText && responseText.trim()) {
+          // 프로필 정보 요청
           try {
-            const data = JSON.parse(responseText);
-            if (data.token) {
-              token = data.token;
+            console.log('프로필 정보 요청 시작');
+            const profileResponse = await api.get('/members/profile');
+            console.log('프로필 응답:', profileResponse.data);
+
+            if (profileResponse.data) {
+              localStorage.setItem('user', JSON.stringify(profileResponse.data));
+              dispatch(setUser(profileResponse.data));
+              console.log('로그인 성공, 리다이렉트:', from);
+              navigate(from, { replace: true });
             }
-          } catch (e) {
-            console.error('Failed to parse JSON:', e);
+          } catch (profileErr) {
+            console.error('프로필 요청 실패:', profileErr);
+            setError('사용자 정보를 가져오는데 실패했습니다.');
+            localStorage.removeItem('token');
           }
+        } else {
+          setError('로그인은 성공했지만 토큰이 없습니다.');
         }
-      } catch (e) {
-        console.error('Failed to read response text:', e);
-      }
-
-      // 토큰 저장
-      if (token) {
-        localStorage.setItem('token', token);
-        console.log('Token saved:', token);
-      }
-
-      // 프로필 정보 가져오기
-      try {
-        const headers = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const profileResponse = await fetch('https://simcar.kro.kr/api/members/profile', {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-
-        if (!profileResponse.ok) {
-          throw new Error(`Profile request failed: ${profileResponse.status}`);
-        }
-
-        const profileData = await profileResponse.json();
-        console.log('Profile data:', profileData);
-
-        localStorage.setItem('user', JSON.stringify(profileData));
-        dispatch(setUser(profileData));
-        navigate(from, { replace: true });
-      } catch (profileError) {
-        console.error('Profile error:', profileError);
-
-        // 프로필 획득 실패시에도 로그인은 성공으로 처리
-        const defaultUser = { email, name: email.split('@')[0] };
-        localStorage.setItem('user', JSON.stringify(defaultUser));
-        dispatch(setUser(defaultUser));
-        navigate(from, { replace: true });
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+      const error = err as AxiosError<ErrorResponse>;
+      console.error('로그인 에러:', error);
+      console.error('에러 응답:', error.response);
+
+      if (error.response?.status === 401) {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else {
+        setError('로그인에 실패했습니다. 다시 시도해주세요.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +100,7 @@ const Login = () => {
           <div className='max-w-md mx-auto mt-24'>
             <h1 className='text-3xl font-bold text-gray-900 mb-10 text-center'>로그인</h1>
             {error && <p className='text-red-500 text-center mb-4'>{error}</p>}
-            <form onSubmit={handleLogin} className='space-y-6'>
+            <form onSubmit={handleSubmit} className='space-y-6'>
               <div className='relative'>
                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
                   <BiEnvelope className='h-5 w-5 text-gray-400' />
@@ -177,8 +140,8 @@ const Login = () => {
               </div>
               <button
                 type='submit'
-                className='w-full py-4 bg-[#36379C] text-white rounded-lg font-medium hover:bg-[#2F2F8C] transition-colors'
                 disabled={isLoading}
+                className='w-full py-4 bg-[#36379C] text-white rounded-lg font-medium hover:bg-[#2F2F8C] transition-colors disabled:bg-[#5758BB]'
               >
                 {isLoading ? '로그인 중...' : '로그인'}
               </button>
