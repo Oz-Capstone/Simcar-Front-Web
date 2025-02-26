@@ -13,6 +13,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -21,32 +22,67 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
     try {
+      // 요청 전 로깅 추가
+      console.log('Attempting login with:', { email, passwordLength: password.length });
+      console.log('API endpoint:', '/members/login');
+
       const response = await api.post('/members/login', {
         email,
         password,
       });
 
+      // 응답 데이터 확인을 위한 로깅 추가
+      console.log('Login response status:', response.status);
+      console.log('Login response data:', response.data);
+
       if (response.status === 200) {
+        // 토큰 형식 확인 로깅
+        console.log('Token from response:', response.data?.token);
+
         if (response.data?.token) {
           localStorage.setItem('token', response.data.token);
+        } else if (response.data?.accessToken) {
+          // 토큰 이름이 다를 수 있음
+          localStorage.setItem('token', response.data.accessToken);
+        } else {
+          console.warn('No token found in response:', response.data);
         }
 
-        const profileResponse = await api.get('/members/profile');
-        if (profileResponse.data) {
-          localStorage.setItem('user', JSON.stringify(profileResponse.data));
-          dispatch(setUser(profileResponse.data));
-          navigate(from, { replace: true });
+        try {
+          console.log('Fetching user profile...');
+          const profileResponse = await api.get('/members/profile');
+          console.log('Profile response:', profileResponse.data);
+
+          if (profileResponse.data) {
+            localStorage.setItem('user', JSON.stringify(profileResponse.data));
+            dispatch(setUser(profileResponse.data));
+            console.log('Login successful, navigating to:', from);
+            navigate(from, { replace: true });
+          }
+        } catch (profileErr) {
+          console.error('Profile fetch error:', profileErr);
+          setError('프로필 정보를 가져오는데 실패했습니다.');
         }
       }
     } catch (err) {
       const error = err as AxiosError<ErrorResponse>;
+      console.error('Login error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
       if (error.response?.status === 401) {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.');
       } else {
-        setError('로그인에 실패했습니다. 다시 시도해주세요.');
+        setError(`로그인에 실패했습니다: ${error.response?.data?.message || error.message}`);
       }
-      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -110,8 +146,9 @@ const Login = () => {
               <button
                 type='submit'
                 className='w-full py-4 bg-[#36379C] text-white rounded-lg font-medium hover:bg-[#2F2F8C] transition-colors'
+                disabled={isLoading}
               >
-                로그인
+                {isLoading ? '로그인 중...' : '로그인'}
               </button>
             </form>
 
