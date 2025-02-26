@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-// 기본 URL 설정 - 백엔드 API에 직접 연결
-const baseURL = 'https://simcar.kro.kr/api';
+// 환경에 따라 baseURL 설정
+const isProduction = import.meta.env.PROD;
+
+// 배포 환경에서는 백엔드 서버의 API 경로를 직접 사용
+// 개발 환경에서는 vite의 프록시 설정을 사용하기 위해 상대 경로 사용
+const baseURL = isProduction
+  ? 'https://simcar.kro.kr/api' // 수정: URL에 /api를 포함
+  : '/api';
 
 export const api = axios.create({
   baseURL: baseURL,
@@ -14,6 +20,8 @@ export const api = axios.create({
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
+    // 이제 모든 요청에 baseURL이 포함되어 있으므로 URL 접두사 추가 로직 제거
+
     // 토큰 추가
     const token = localStorage.getItem('token');
     if (token) {
@@ -21,7 +29,8 @@ api.interceptors.request.use(
     }
 
     // 요청 로깅
-    console.log('Request:', {
+    console.log('Final Request URL:', `${baseURL}${config.url}`);
+    console.log('Request Details:', {
       url: config.url,
       method: config.method,
       data: config.data,
