@@ -8,7 +8,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://54.180.92.197:8080',
+        target: 'https://simcar.kro.kr',
         changeOrigin: true,
         secure: false,
       },
