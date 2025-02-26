@@ -21,7 +21,7 @@ export interface CarRegistrationRequest {
 // 이미지 URL을 백엔드 서버 URL과 결합
 export const getFullImageUrl = (path: string): string => {
   if (!path) return '';
-  return `http://54.180.92.197:8080${path}`;
+  return `https://simcar.kro.kr${path}`;
 };
 
 // 로컬 스토리지에서 찜한 차량 ID 목록을 가져오는 함수
