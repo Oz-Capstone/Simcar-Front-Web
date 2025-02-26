@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 // 환경에 따라 baseURL 설정
-const isProduction = import.meta.env.PROD; // 프로덕션 환경 여부 확인
+const isProduction = import.meta.env.PROD;
 const baseURL = isProduction
-  ? 'https://simcar.kro.kr' // 배포 환경에서는 전체 URL 사용
+  ? 'https://simcar.kro.kr/api' // api 경로를 포함한 전체 URL
   : '/api'; // 개발 환경에서는 프록시 사용
 
 export const api = axios.create({
