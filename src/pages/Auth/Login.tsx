@@ -22,11 +22,9 @@ const Login = () => {
     setIsLoading(true);
     setError('');
 
-    // 디버깅을 위한 로그 추가
     console.log('Form submitted');
 
     try {
-      // 직접 fetch API를 사용해 요청
       const response = await fetch('https://simcar.kro.kr/api/members/login', {
         method: 'POST',
         headers: {
@@ -44,29 +42,58 @@ const Login = () => {
         throw new Error(`Login failed: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Login response data:', data);
+      // 응답 내용 텍스트로 먼저 확인
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
 
-      if (data.token) {
+      // 텍스트가 비어있지 않은 경우에만 JSON 파싱 시도
+      let data;
+      if (responseText.trim()) {
+        try {
+          data = JSON.parse(responseText);
+          console.log('Login response data:', data);
+        } catch (parseError) {
+          console.error('JSON parsing error:', parseError);
+          throw new Error('서버 응답을 처리할 수 없습니다');
+        }
+      } else {
+        console.log('Empty response received');
+        // 빈 응답이 성공이라고 가정하고 진행
+        data = {};
+      }
+
+      // 토큰 획득 또는 세션 기반 인증 처리
+      if (data?.token) {
         localStorage.setItem('token', data.token);
+      } else {
+        // 토큰이 없는 경우에도 로그인이 성공했다고 가정
+        console.log('No token in response, but login successful');
+      }
 
-        // 프로필 정보 가져오기
+      // 프로필 정보 가져오기
+      try {
         const profileResponse = await fetch('https://simcar.kro.kr/api/members/profile', {
           headers: {
-            Authorization: `Bearer ${data.token}`,
+            Authorization: data?.token ? `Bearer ${data.token}` : '',
           },
         });
 
         if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          localStorage.setItem('user', JSON.stringify(profileData));
-          dispatch(setUser(profileData));
-          navigate(from, { replace: true });
+          const profileText = await profileResponse.text();
+          if (profileText.trim()) {
+            const profileData = JSON.parse(profileText);
+            localStorage.setItem('user', JSON.stringify(profileData));
+            dispatch(setUser(profileData));
+            navigate(from, { replace: true });
+          } else {
+            throw new Error('프로필 정보가 비어있습니다');
+          }
         } else {
-          setError('프로필 정보를 가져오는데 실패했습니다.');
+          throw new Error(`프로필 요청 실패: ${profileResponse.status}`);
         }
-      } else {
-        setError('토큰 정보를 받지 못했습니다.');
+      } catch (profileErr) {
+        console.error('Profile fetch error:', profileErr);
+        setError('프로필 정보를 가져오는데 실패했습니다.');
       }
     } catch (err) {
       console.error('Login error:', err);
