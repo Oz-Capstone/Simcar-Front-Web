@@ -3,7 +3,7 @@ import axios from 'axios';
 // 환경에 따라 baseURL 설정
 const isProduction = import.meta.env.PROD;
 const baseURL = isProduction
-  ? 'https://simcar.kro.kr/api' // api 경로를 포함한 전체 URL
+  ? 'https://simcar.kro.kr' // /api 제외하고 기본 URL만 설정
   : '/api'; // 개발 환경에서는 프록시 사용
 
 export const api = axios.create({
@@ -17,6 +17,11 @@ export const api = axios.create({
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
+    // 경로 처리: 프로덕션 환경에서는 /api 접두사 추가
+    if (isProduction && config.url && !config.url.startsWith('/api')) {
+      config.url = `/api${config.url}`;
+    }
+
     // 토큰 추가
     const token = localStorage.getItem('token');
     if (token) {
@@ -39,7 +44,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response Interceptor
+// Response Interceptor는 변경 없음
 api.interceptors.response.use(
   (response) => {
     // 응답 로깅
