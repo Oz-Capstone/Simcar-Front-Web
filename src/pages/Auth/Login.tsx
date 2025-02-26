@@ -26,45 +26,62 @@ const Login = () => {
     setError('');
 
     try {
-      // 로그인 요청
       console.log('로그인 시도:', { email, password });
       const response = await api.post('/members/login', {
         email,
         password,
       });
 
-      console.log('로그인 응답:', response.data);
+      console.log('로그인 응답 전체:', response);
+      console.log('로그인 응답 데이터:', response.data);
 
-      if (response.status === 200) {
-        if (response.data?.token) {
-          // 토큰 저장
-          const token = response.data.token;
-          localStorage.setItem('token', token);
-          console.log('토큰 저장됨:', token);
+      // 응답 구조 확인 및 토큰 추출
+      let token = null;
 
-          // Authorization 헤더 직접 설정
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // 케이스 1: { token: "토큰값" }
+      if (response.data && response.data.token) {
+        token = response.data.token;
+      }
+      // 케이스 2: 토큰이 직접 문자열로 반환되는 경우
+      else if (typeof response.data === 'string' && response.data.length > 10) {
+        token = response.data;
+      }
+      // 케이스 3: { data: { token: "토큰값" } }
+      else if (response.data && response.data.data && response.data.data.token) {
+        token = response.data.data.token;
+      }
+      // 케이스 4: 헤더에 토큰이 있는 경우
+      else if (response.headers && response.headers.authorization) {
+        token = response.headers.authorization.replace('Bearer ', '');
+      }
 
-          // 프로필 정보 요청
-          try {
-            console.log('프로필 정보 요청 시작');
-            const profileResponse = await api.get('/members/profile');
-            console.log('프로필 응답:', profileResponse.data);
+      if (token) {
+        // 토큰 저장
+        localStorage.setItem('token', token);
+        console.log('토큰 저장됨:', token);
 
-            if (profileResponse.data) {
-              localStorage.setItem('user', JSON.stringify(profileResponse.data));
-              dispatch(setUser(profileResponse.data));
-              console.log('로그인 성공, 리다이렉트:', from);
-              navigate(from, { replace: true });
-            }
-          } catch (profileErr) {
-            console.error('프로필 요청 실패:', profileErr);
-            setError('사용자 정보를 가져오는데 실패했습니다.');
-            localStorage.removeItem('token');
+        // Authorization 헤더 직접 설정
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+        // 프로필 정보 요청
+        try {
+          console.log('프로필 정보 요청 시작');
+          const profileResponse = await api.get('/members/profile');
+          console.log('프로필 응답:', profileResponse.data);
+
+          if (profileResponse.data) {
+            localStorage.setItem('user', JSON.stringify(profileResponse.data));
+            dispatch(setUser(profileResponse.data));
+            console.log('로그인 성공, 리다이렉트:', from);
+            navigate(from, { replace: true });
           }
-        } else {
-          setError('로그인은 성공했지만 토큰이 없습니다.');
+        } catch (profileErr) {
+          console.error('프로필 요청 실패:', profileErr);
+          setError('사용자 정보를 가져오는데 실패했습니다.');
         }
+      } else {
+        console.error('토큰을 찾을 수 없습니다. 응답 데이터:', response.data);
+        setError('로그인은 성공했지만 토큰이 없습니다. 관리자에게 문의하세요.');
       }
     } catch (err) {
       const error = err as AxiosError<ErrorResponse>;
