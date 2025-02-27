@@ -27,7 +27,8 @@ const Login = () => {
 
     try {
       console.log('로그인 시도:', { email, password });
-      // 로그인 요청
+
+      // API 요청 명시적으로 설정
       const response = await api.post('/members/login', {
         email,
         password,
