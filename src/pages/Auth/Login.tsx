@@ -20,20 +20,15 @@ const Login = () => {
   const location = useLocation();
   const from = location.state?.from || '/';
 
-  // 클릭 핸들러를 직접 사용
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('이메일과 비밀번호를 입력해주세요.');
-      return;
-    }
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // 폼 기본 제출 동작 방지
     setIsLoading(true);
     setError('');
 
     try {
       console.log('로그인 시도:', { email, password });
 
-      // API 요청 직접 호출
+      // 명시적 API 요청 (절대 URL 사용)
       const response = await api.post('/members/login', {
         email,
         password,
@@ -74,14 +69,6 @@ const Login = () => {
     }
   };
 
-  // 키보드 Enter 이벤트 처리
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault(); // 기본 동작 방지
-      handleLogin();
-    }
-  };
-
   return (
     <div className='min-h-screen flex items-center justify-center bg-gray-50 p-4'>
       <div className='max-w-5xl w-full flex rounded-3xl overflow-hidden shadow-xl'>
@@ -101,9 +88,7 @@ const Login = () => {
           <div className='max-w-md mx-auto mt-24'>
             <h1 className='text-3xl font-bold text-gray-900 mb-10 text-center'>로그인</h1>
             {error && <p className='text-red-500 text-center mb-4'>{error}</p>}
-
-            {/* 폼 대신 div 사용 */}
-            <div className='space-y-6'>
+            <form onSubmit={handleSubmit} className='space-y-6'>
               <div className='relative'>
                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
                   <BiEnvelope className='h-5 w-5 text-gray-400' />
@@ -112,9 +97,9 @@ const Login = () => {
                   type='email'
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
                   placeholder='이메일을 입력해주세요'
                   className='w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#36379C] focus:border-transparent'
+                  required
                 />
               </div>
               <div className='relative'>
@@ -125,9 +110,9 @@ const Login = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
                   placeholder='비밀번호를 입력해주세요'
                   className='w-full pl-10 pr-10 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#36379C] focus:border-transparent'
+                  required
                 />
                 <button
                   type='button'
@@ -142,14 +127,13 @@ const Login = () => {
                 </button>
               </div>
               <button
-                type='button'
-                onClick={handleLogin}
+                type='submit'
                 disabled={isLoading}
                 className='w-full py-4 bg-[#36379C] text-white rounded-lg font-medium hover:bg-[#2F2F8C] transition-colors disabled:bg-[#5758BB]'
               >
                 {isLoading ? '로그인 중...' : '로그인'}
               </button>
-            </div>
+            </form>
 
             <p className='mt-8 text-center text-gray-600'>
               계정이 없으신가요?{' '}

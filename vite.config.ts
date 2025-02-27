@@ -11,6 +11,8 @@ export default defineConfig({
         target: 'https://simcar.kro.kr',
         changeOrigin: true,
         secure: false,
+        ws: true,
+        xfwd: true,
       },
     },
   },
