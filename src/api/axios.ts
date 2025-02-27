@@ -2,10 +2,7 @@ import axios from 'axios';
 
 // 환경에 따라 baseURL 설정
 const isProduction = import.meta.env.PROD;
-// 백엔드 서버 URL을 항상 명시적으로 사용
-const baseURL = isProduction
-  ? 'https://simcar.kro.kr/api' // 배포 환경 - 전체 URL 사용
-  : '/api'; // 개발 환경 - Vite 프록시 사용
+const baseURL = isProduction ? 'https://simcar.kro.kr/api' : '/api';
 
 export const api = axios.create({
   baseURL: baseURL,
@@ -13,17 +10,12 @@ export const api = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
+  withCredentials: true, // 쿠키를 요청과 함께 전송
 });
 
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    // 토큰 추가
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
     // 요청 로깅
     console.log('Request Details:', {
       fullUrl: `${baseURL}${config.url}`,
