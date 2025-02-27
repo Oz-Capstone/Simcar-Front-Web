@@ -39,6 +39,7 @@ api.interceptors.response.use(
     console.log('Response Success:', {
       status: response.status,
       data: response.data,
+      headers: response.headers,
     });
     return response;
   },
@@ -53,7 +54,10 @@ api.interceptors.response.use(
     // 401 에러 처리
     if (error.response?.status === 401) {
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // 로그인 페이지에 있는 경우는 리다이렉트하지 않음
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(error);
