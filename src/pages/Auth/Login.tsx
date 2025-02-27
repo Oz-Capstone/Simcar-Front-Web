@@ -21,14 +21,14 @@ const Login = () => {
   const from = location.state?.from || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // 폼 기본 제출 동작 방지
     setIsLoading(true);
     setError('');
 
     try {
       console.log('로그인 시도:', { email, password });
 
-      // API 요청 명시적으로 설정
+      // 명시적 API 요청 (절대 URL 사용)
       const response = await api.post('/members/login', {
         email,
         password,
@@ -37,7 +37,6 @@ const Login = () => {
       console.log('로그인 응답:', response);
 
       if (response.status === 200) {
-        // 세션이 설정되었으므로 바로 프로필 정보 요청
         try {
           console.log('프로필 정보 요청 시작');
           const profileResponse = await api.get('/members/profile');
@@ -59,7 +58,6 @@ const Login = () => {
     } catch (err) {
       const error = err as AxiosError<ErrorResponse>;
       console.error('로그인 에러:', error);
-      console.error('에러 응답:', error.response);
 
       if (error.response?.status === 401) {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.');
