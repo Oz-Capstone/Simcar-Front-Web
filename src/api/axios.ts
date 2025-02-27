@@ -10,13 +10,13 @@ export const api = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
-  withCredentials: true, // 쿠키를 요청과 함께 전송
+  withCredentials: true, // 중요: 쿠키 전송 허용
 });
 
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    // 요청 로깅
+    // 원래 코드 유지
     console.log('Request Details:', {
       fullUrl: `${baseURL}${config.url}`,
       method: config.method,
@@ -50,9 +50,9 @@ api.interceptors.response.use(
       message: error.message,
     });
 
-    // 401 에러 처리
+    // 401 에러 처리는 유지하되, 세션 기반 인증에 맞게 조정
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      // 세션이 만료된 경우 로컬 스토리지 정보만 초기화
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
