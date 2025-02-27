@@ -16,11 +16,16 @@ export const api = axios.create({
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
+    // axios 인스턴스에 withCredentials가 설정되어 있어도 각 요청마다 확인
+    config.withCredentials = true;
+
     // 요청 로깅
     console.log('Request Details:', {
       fullUrl: `${baseURL}${config.url}`,
       method: config.method,
       headers: config.headers,
+      cookies: document.cookie, // 현재 쿠키 상태 로깅
+      withCredentials: config.withCredentials,
       data: config.data,
     });
 
@@ -40,6 +45,7 @@ api.interceptors.response.use(
       status: response.status,
       data: response.data,
       headers: response.headers,
+      cookies: document.cookie, // 응답 후 쿠키 상태 로깅
     });
     return response;
   },
@@ -49,12 +55,13 @@ api.interceptors.response.use(
       status: error.response?.status,
       data: error.response?.data,
       message: error.message,
+      cookies: document.cookie, // 에러 시 쿠키 상태 로깅
     });
 
-    // 401 에러 처리
+    // 401 에러 처리 - 로그인 페이지에서는 리다이렉트 방지
     if (error.response?.status === 401) {
       localStorage.removeItem('user');
-      // 로그인 페이지에 있는 경우는 리다이렉트하지 않음
+      // 현재 경로가 로그인 페이지가 아닐 때만 리다이렉트
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }

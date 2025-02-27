@@ -20,7 +20,7 @@ const Login = () => {
   const location = useLocation();
   const from = location.state?.from || '/';
 
-  // 로그인 처리 함수
+  // 로그인 버튼 클릭 핸들러
   const handleLogin = async () => {
     if (!email || !password) {
       setError('이메일과 비밀번호를 입력해주세요.');
@@ -33,38 +33,47 @@ const Login = () => {
     try {
       console.log('로그인 시도:', { email, password });
 
-      // 로그인 API 요청
-      const response = await api.post('/members/login', {
-        email,
-        password,
-      });
+      // 로그인 API 요청 - 명시적으로 withCredentials 설정
+      const response = await api.post(
+        '/members/login',
+        {
+          email,
+          password,
+        },
+        { withCredentials: true }
+      );
 
       console.log('로그인 응답:', response);
 
       if (response.status === 200) {
-        // 로그인 성공 - 약간의 지연 후 프로필 요청 (쿠키 설정 시간 고려)
-        setTimeout(async () => {
-          try {
-            console.log('프로필 정보 요청 시작');
-            // 명시적으로 withCredentials 옵션 추가
-            const profileResponse = await api.get('/members/profile', {
-              withCredentials: true,
-            });
+        // 로그인 성공 - 세션 쿠키가 설정되었을 것
+        try {
+          console.log('프로필 정보 요청 시작');
 
-            console.log('프로필 응답:', profileResponse.data);
+          // 세션 쿠키 설정에 약간의 지연 허용
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
-            if (profileResponse.data) {
-              localStorage.setItem('user', JSON.stringify(profileResponse.data));
-              dispatch(setUser(profileResponse.data));
-              console.log('로그인 성공, 리다이렉트:', from);
-              navigate(from, { replace: true });
-            }
-          } catch (profileErr) {
-            console.error('프로필 요청 실패:', profileErr);
-            setError('사용자 정보를 가져오는데 실패했습니다.');
-            setIsLoading(false);
+          // 프로필 API 요청 - 명시적으로 withCredentials 설정
+          const profileResponse = await api.get('/members/profile', {
+            withCredentials: true,
+          });
+
+          console.log('프로필 응답:', profileResponse.data);
+
+          if (profileResponse.data) {
+            localStorage.setItem('user', JSON.stringify(profileResponse.data));
+            dispatch(setUser(profileResponse.data));
+            console.log('로그인 성공, 리다이렉트:', from);
+            navigate(from, { replace: true });
           }
-        }, 300); // 300ms 지연
+        } catch (profileErr) {
+          console.error('프로필 요청 실패:', profileErr);
+          console.error('프로필 요청 쿠키가 전송되었는지 확인하세요');
+          // 쿠키 디버깅 정보
+          console.log('현재 쿠키:', document.cookie);
+          setError('사용자 정보를 가져오는데 실패했습니다.');
+          setIsLoading(false);
+        }
       } else {
         setError('로그인에 실패했습니다.');
         setIsLoading(false);
@@ -110,7 +119,7 @@ const Login = () => {
             <h1 className='text-3xl font-bold text-gray-900 mb-10 text-center'>로그인</h1>
             {error && <p className='text-red-500 text-center mb-4'>{error}</p>}
 
-            {/* form 대신 div 사용 */}
+            {/* div로 변경하여 form 제출 방지 */}
             <div className='space-y-6'>
               <div className='relative'>
                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center'>
