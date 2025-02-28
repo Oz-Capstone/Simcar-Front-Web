@@ -199,8 +199,20 @@ export const setCarThumbnail = async (carId: number, imageId: number): Promise<v
 export const updateCar = async (carId: number, carData: CarRegistrationRequest): Promise<Car> => {
   console.log('차량 정보 수정 요청:', { carId, carData });
   const response = await api.put<Car>(`/cars/${carId}`, carData);
+  console.log('응답 데이터:', response.data);
+
+  // 응답 데이터가 비어 있는 경우 처리
+  if (
+    !response.data ||
+    (typeof response.data === 'string' && response.data === '') ||
+    (typeof response.data === 'object' && Object.keys(response.data).length === 0)
+  ) {
+    console.log('서버에서 빈 응답이 반환되었습니다. 차량 정보를 다시 조회합니다.');
+    // 차량 정보를 다시 조회하여 반환
+    return await getCarDetail(carId);
+  }
+
   const processedData = processCarDetailData(response.data);
-  console.log('차량 정보 수정 응답:', processedData);
   return processedData;
 };
 
