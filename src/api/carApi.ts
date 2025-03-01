@@ -39,6 +39,9 @@ export const saveFavoriteIdsToLocalStorage = (favoriteIds: number[]): void => {
 
 // 브랜드 영문명을 한글명으로 변환
 export const convertBrandToKorean = (englishBrand: string): string => {
+  // undefined나 null 체크 추가
+  if (!englishBrand) return '';
+
   const brandMap: { [key: string]: string } = {
     genesis: '제네시스',
     hyundai: '현대',
@@ -57,11 +60,19 @@ export const convertBrandToKorean = (englishBrand: string): string => {
     volvo: '볼보',
   };
 
-  return brandMap[englishBrand.toLowerCase()] || englishBrand;
+  try {
+    return brandMap[englishBrand.toLowerCase()] || englishBrand;
+  } catch (error) {
+    console.error('Error converting brand:', error);
+    return englishBrand || '';
+  }
 };
 
 // 지역 영문명을 한글명으로 변환
 export const convertRegionToKorean = (englishRegion: string): string => {
+  // undefined나 null 체크 추가
+  if (!englishRegion) return '';
+
   const regionMap: { [key: string]: string } = {
     Seoul: '서울',
     Busan: '부산',
@@ -82,11 +93,18 @@ export const convertRegionToKorean = (englishRegion: string): string => {
     Jeju: '제주',
   };
 
-  return regionMap[englishRegion] || englishRegion;
+  try {
+    return regionMap[englishRegion] || englishRegion;
+  } catch (error) {
+    console.error('Error converting region:', error);
+    return englishRegion || '';
+  }
 };
 
 // 차량 데이터 처리 함수 - 영문을 한글로 변환
 const processCarData = (car: CarListResponse): CarListResponse => {
+  if (!car) return car;
+
   return {
     ...car,
     brand: convertBrandToKorean(car.brand),
@@ -97,14 +115,19 @@ const processCarData = (car: CarListResponse): CarListResponse => {
 
 // 차량 상세 데이터 처리 함수 - 영문을 한글로 변환
 const processCarDetailData = (car: Car): Car => {
+  if (!car) return car;
+
   return {
     ...car,
     brand: convertBrandToKorean(car.brand),
     region: convertRegionToKorean(car.region),
-    images: car.images.map((image) => ({
-      ...image,
-      filePath: getFullImageUrl(image.filePath),
-    })),
+    images:
+      car.images && Array.isArray(car.images)
+        ? car.images.map((image) => ({
+            ...image,
+            filePath: getFullImageUrl(image.filePath),
+          }))
+        : [],
   };
 };
 
@@ -115,7 +138,7 @@ export const getCars = async (filter?: CarFilter): Promise<CarListResponse[]> =>
     params: filter,
   });
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  const processedData = response.data.map(processCarData);
+  const processedData = Array.isArray(response.data) ? response.data.map(processCarData) : [];
   console.log('차량 목록 응답:', processedData);
   return processedData;
 };
@@ -135,7 +158,7 @@ export const getMySales = async (): Promise<CarListResponse[]> => {
   console.log('내 판매 차량 목록 조회 요청');
   const response = await api.get<CarListResponse[]>('/members/sales');
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  const processedData = response.data.map(processCarData);
+  const processedData = Array.isArray(response.data) ? response.data.map(processCarData) : [];
   console.log('내 판매 차량 목록 응답:', processedData);
   return processedData;
 };
@@ -145,7 +168,7 @@ export const getFavorites = async (): Promise<CarListResponse[]> => {
   console.log('찜한 차량 목록 조회 요청');
   const response = await api.get<CarListResponse[]>('/members/favorites');
   // 이미지 URL 처리 및 브랜드/지역 한글 변환
-  const favorites = response.data.map(processCarData);
+  const favorites = Array.isArray(response.data) ? response.data.map(processCarData) : [];
 
   // 찜한 차량 ID를 로컬 스토리지에 저장
   saveFavoriteIdsToLocalStorage(favorites.map((car) => car.id));
@@ -198,22 +221,17 @@ export const setCarThumbnail = async (carId: number, imageId: number): Promise<v
 // 차량 정보 수정
 export const updateCar = async (carId: number, carData: CarRegistrationRequest): Promise<Car> => {
   console.log('차량 정보 수정 요청:', { carId, carData });
-  const response = await api.put<Car>(`/cars/${carId}`, carData);
-  console.log('응답 데이터:', response.data);
+  try {
+    // PUT 요청 보내기
+    await api.put(`/cars/${carId}`, carData);
+    console.log('차량 정보 수정 성공');
 
-  // 응답 데이터가 비어 있는 경우 처리
-  if (
-    !response.data ||
-    (typeof response.data === 'string' && response.data === '') ||
-    (typeof response.data === 'object' && Object.keys(response.data).length === 0)
-  ) {
-    console.log('서버에서 빈 응답이 반환되었습니다. 차량 정보를 다시 조회합니다.');
-    // 차량 정보를 다시 조회하여 반환
+    // 응답 데이터 처리 대신 항상 최신 정보 조회
     return await getCarDetail(carId);
+  } catch (error) {
+    console.error('Failed to update car:', error);
+    throw error;
   }
-
-  const processedData = processCarDetailData(response.data);
-  return processedData;
 };
 
 // 차량 삭제
